@@ -1,0 +1,44 @@
+[Unit]
+Description=TrueNAS Artifact Inotify Hook - File System Event Monitor
+Documentation=https://gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook
+After=network.target local-fs.target zfs.target
+Wants=zfs.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+
+# Main executable
+ExecStart=/usr/local/bin/inotify-hook watch \
+    /mnt/data/firmware_os/prod/prod-os/ \
+    /mnt/data/firmware_os/pre/os-pre/ \
+    /mnt/data/firmware_os/test/os-test/ \
+    --mode=write-complete \
+    --hook=/root/scripts/inotify-hook.sh \
+    --debounce=2000
+
+# Restart policy
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+# Environment
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=inotify-hook
+
+# Resource limits
+LimitNOFILE=65536
+
+# Security hardening (optional, comment out if causing issues)
+NoNewPrivileges=no
+ProtectSystem=no
+ProtectHome=no
+
+[Install]
+WantedBy=multi-user.target

@@ -221,33 +221,227 @@ inotify-hook watch \
 
 ### 作为 systemd 服务运行
 
-创建 `/etc/systemd/system/inotify-hook.service`:
+#### 方式一：使用安装脚本（推荐）
 
-```ini
+```bash
+# 在项目目录下
+chmod +x deploy/install.sh
+
+# 安装服务
+./deploy/install.sh
+
+# 卸载服务
+./deploy/install.sh --uninstall
+```
+
+#### 方式二：手动安装（Step by Step）
+
+**Step 1: 上传二进制文件到服务器**
+
+```bash
+# 在本地机器上执行
+scp inotify-hook-linux-amd64 root@truenas:/usr/local/bin/inotify-hook
+```
+
+**Step 2: 设置执行权限**
+
+```bash
+# SSH 登录到 TrueNAS
+ssh root@truenas
+
+# 设置权限
+chmod +x /usr/local/bin/inotify-hook
+
+# 验证
+/usr/local/bin/inotify-hook version
+```
+
+**Step 3: 创建 hook 脚本目录和脚本**
+
+```bash
+# 创建目录
+mkdir -p /root/scripts
+
+# 创建 hook 脚本
+cat > /root/scripts/inotify-hook.sh << 'EOF'
+#!/bin/bash
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+EVENT_TYPE="$1"
+FILE_PATH="$2"
+FILE_NAME="$3"
+IS_DIR="$4"
+
+echo "[$(date '+%Y-%m-%d %H:%M:%S')] Event: $EVENT_TYPE, Path: $FILE_PATH"
+
+# 在这里添加你的自定义逻辑
+# 例如：触发 AList 索引刷新、发送通知等
+
+EOF
+
+# 设置执行权限
+chmod +x /root/scripts/inotify-hook.sh
+```
+
+**Step 4: 创建 systemd 服务文件**
+
+```bash
+cat > /etc/systemd/system/inotify-hook.service << 'EOF'
 [Unit]
-Description=TrueNAS Artifact Inotify Hook
-After=network.target
+Description=TrueNAS Artifact Inotify Hook - File System Event Monitor
+After=network.target local-fs.target zfs.target
+Wants=zfs.target
 
 [Service]
 Type=simple
+User=root
+Group=root
+
 ExecStart=/usr/local/bin/inotify-hook watch \
-    /mnt/data/firmware_os/prod \
-    /mnt/data/firmware_os/pre \
-    /mnt/data/firmware_os/test \
-    --hook=/usr/local/bin/on-artifact-ready.sh \
-    --debounce=1000
+    /mnt/data/firmware_os/prod/prod-os/ \
+    /mnt/data/firmware_os/pre/os-pre/ \
+    /mnt/data/firmware_os/test/os-test/ \
+    --mode=write-complete \
+    --hook=/root/scripts/inotify-hook.sh \
+    --debounce=2000
+
 Restart=always
 RestartSec=5
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=inotify-hook
+
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+EOF
+```
+
+**Step 5: 重载 systemd 配置**
+
+```bash
+systemctl daemon-reload
+```
+
+**Step 6: 启用服务（开机自启）**
+
+```bash
+systemctl enable inotify-hook
+```
+
+输出：
+```
+Created symlink /etc/systemd/system/multi-user.target.wants/inotify-hook.service → /etc/systemd/system/inotify-hook.service.
+```
+
+**Step 7: 启动服务**
+
+```bash
+systemctl start inotify-hook
+```
+
+**Step 8: 验证服务状态**
+
+```bash
+systemctl status inotify-hook
+```
+
+预期输出：
+```
+● inotify-hook.service - TrueNAS Artifact Inotify Hook - File System Event Monitor
+     Loaded: loaded (/etc/systemd/system/inotify-hook.service; enabled; preset: enabled)
+     Active: active (running) since Sun 2025-12-08 11:00:00 CST; 5s ago
+   Main PID: 12345 (inotify-hook)
+      Tasks: 6 (limit: 9830)
+     Memory: 10.0M
+        CPU: 100ms
+     CGroup: /system.slice/inotify-hook.service
+             └─12345 /usr/local/bin/inotify-hook watch ...
+
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 Mode: write-complete (CLOSE_WRITE, MOVED_TO)
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 Adding 3 paths to watch...
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 Hook debounce: 2s
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 Watching: /mnt/data/firmware_os/prod/prod-os/
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 Total directories being watched: 3957
+Dec 08 11:00:00 truenas inotify-hook[12345]: 2025/12/08 11:00:00 File watcher started. Press Ctrl+C to stop.
+```
+
+**Step 9: 查看实时日志**
+
+```bash
+journalctl -u inotify-hook -f
+```
+
+**故障排除**
+
+```bash
+# 如果服务启动失败，查看详细日志
+journalctl -u inotify-hook -n 50 --no-pager
+
+# 检查服务文件语法
+systemd-analyze verify /etc/systemd/system/inotify-hook.service
+
+# 手动测试命令是否正常
+/usr/local/bin/inotify-hook watch /mnt/data/firmware_os/prod/prod-os/ --mode=write-complete
+
+# 停止服务
+systemctl stop inotify-hook
+
+# 禁用开机自启
+systemctl disable inotify-hook
+```
+
+#### 服务文件说明
+
+```ini
+[Unit]
+Description=TrueNAS Artifact Inotify Hook - File System Event Monitor
+After=network.target local-fs.target zfs.target
+Wants=zfs.target
+
+[Service]
+Type=simple
+User=root
+
+ExecStart=/usr/local/bin/inotify-hook watch \
+    /mnt/data/firmware_os/prod/prod-os/ \
+    /mnt/data/firmware_os/pre/os-pre/ \
+    /mnt/data/firmware_os/test/os-test/ \
+    --mode=write-complete \
+    --hook=/root/scripts/inotify-hook.sh \
+    --debounce=2000
+
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-启用服务：
+#### 常用命令
 
 ```bash
-systemctl daemon-reload
-systemctl enable --now inotify-hook
+# 查看服务状态
+systemctl status inotify-hook
+
+# 重启服务
+systemctl restart inotify-hook
+
+# 停止服务
+systemctl stop inotify-hook
+
+# 查看实时日志
+journalctl -u inotify-hook -f
+
+# 查看最近 100 行日志
+journalctl -u inotify-hook -n 100
 ```
 
 ## 命令参考
