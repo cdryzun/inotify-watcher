@@ -15,15 +15,17 @@ var ErrNotSupported = errors.New("inotify is only supported on Linux")
 type EventType uint32
 
 const (
-	EventCreate     EventType = 0x00000100
-	EventModify     EventType = 0x00000002
-	EventDelete     EventType = 0x00000200
-	EventDeleteSelf EventType = 0x00000400
-	EventMovedFrom  EventType = 0x00000040
-	EventMovedTo    EventType = 0x00000080
-	EventCloseWrite EventType = 0x00000008
-	EventAttrib     EventType = 0x00000004
-	EventIsDir      EventType = 0x40000000
+	EventCreate        EventType = 0x00000100
+	EventModify        EventType = 0x00000002
+	EventDelete        EventType = 0x00000200
+	EventDeleteSelf    EventType = 0x00000400
+	EventMovedFrom     EventType = 0x00000040
+	EventMovedTo       EventType = 0x00000080
+	EventCloseWrite    EventType = 0x00000008
+	EventAttrib        EventType = 0x00000004
+	EventIgnored       EventType = 0x00008000
+	EventQueueOverflow EventType = 0x00002000
+	EventIsDir         EventType = 0x40000000
 )
 
 // DefaultWatchMask is the default watch mask for common file operations.
