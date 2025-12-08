@@ -303,7 +303,7 @@ ExecStart=/usr/local/bin/inotify-hook watch \
     /mnt/data/firmware_os/test/os-test/ \
     --mode=write-complete \
     --hook=/root/scripts/inotify-hook.sh \
-    --debounce=2000
+    --debounce=20000
 
 Restart=always
 RestartSec=5
