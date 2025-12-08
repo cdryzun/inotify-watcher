@@ -1,0 +1,117 @@
+# https://taskfile.dev
+version: '3'
+
+vars:
+  APP_NAME: truenas-artifact-inotify-hook
+  VERSION:
+    sh: git describe --tags --always --dirty 2>/dev/null || echo "dev"
+  GIT_COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo "unknown"
+  BUILD_TIME:
+    sh: date -u +"%Y-%m-%dT%H:%M:%SZ"
+  LDFLAGS: >-
+    -s -w
+    -X gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/cmd.Version={{.VERSION}}
+    -X gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/cmd.GitCommit={{.GIT_COMMIT}}
+    -X gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/cmd.BuildTime={{.BUILD_TIME}}
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  deps:
+    desc: Download and tidy dependencies
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  fmt:
+    desc: Format source code
+    cmds:
+      - go fmt ./...
+
+  lint:
+    desc: Run linter
+    cmds:
+      - golangci-lint run ./...
+
+  test:
+    desc: Run tests
+    cmds:
+      - go test -v -race ./...
+
+  build:
+    desc: Build for current platform
+    cmds:
+      - go build -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}} .
+
+  build:truenas:
+    desc: Build for TrueNAS SCALE (Linux amd64)
+    env:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: amd64
+    cmds:
+      - mkdir -p dist
+      - go build -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-amd64 .
+    generates:
+      - dist/{{.APP_NAME}}-linux-amd64
+
+  build:truenas-arm64:
+    desc: Build for TrueNAS SCALE (Linux arm64)
+    env:
+      CGO_ENABLED: "0"
+      GOOS: linux
+      GOARCH: arm64
+    cmds:
+      - mkdir -p dist
+      - go build -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-arm64 .
+    generates:
+      - dist/{{.APP_NAME}}-linux-arm64
+
+  build:all:
+    desc: Build for all supported platforms
+    deps:
+      - build:truenas
+      - build:truenas-arm64
+
+  clean:
+    desc: Clean build artifacts
+    cmds:
+      - rm -rf dist/
+
+  install:
+    desc: Install to local system
+    cmds:
+      - go install -ldflags "{{.LDFLAGS}}" .
+
+  run:
+    desc: Run the application (pass args with -- flag)
+    cmds:
+      - go run . {{.CLI_ARGS}}
+
+  release:truenas:
+    desc: Build and prepare release for TrueNAS
+    cmds:
+      - task: clean
+      - task: build:truenas
+      - |
+        echo "Built: dist/{{.APP_NAME}}-linux-amd64"
+        echo "Version: {{.VERSION}}"
+        echo "Commit: {{.GIT_COMMIT}}"
+        echo ""
+        echo "To deploy to TrueNAS:"
+        echo "  scp dist/{{.APP_NAME}}-linux-amd64 root@truenas:/usr/local/bin/{{.APP_NAME}}"
+        echo "  ssh root@truenas chmod +x /usr/local/bin/{{.APP_NAME}}"
+
+  docker:build:
+    desc: Build Docker image
+    cmds:
+      - docker build -t {{.APP_NAME}}:{{.VERSION}} .
+
+  help:
+    desc: Show application help
+    cmds:
+      - go run . --help
