@@ -36,6 +36,10 @@ const (
 	EventCloseWrite EventType = unix.IN_CLOSE_WRITE
 	// EventAttrib indicates file attributes were changed.
 	EventAttrib EventType = unix.IN_ATTRIB
+	// EventIgnored indicates the watch was removed (e.g., watched dir deleted).
+	EventIgnored EventType = unix.IN_IGNORED
+	// EventQueueOverflow indicates the event queue overflowed.
+	EventQueueOverflow EventType = unix.IN_Q_OVERFLOW
 	// EventIsDir is set when the event target is a directory.
 	EventIsDir EventType = unix.IN_ISDIR
 )
@@ -96,6 +100,12 @@ func (e *Event) String() string {
 	if e.HasType(EventAttrib) {
 		types = append(types, "ATTRIB")
 	}
+	if e.HasType(EventIgnored) {
+		types = append(types, "IGNORED")
+	}
+	if e.HasType(EventQueueOverflow) {
+		types = append(types, "Q_OVERFLOW")
+	}
 	dirStr := ""
 	if e.IsDir {
 		dirStr = " [DIR]"
@@ -111,17 +121,17 @@ type ErrorHandler func(err error)
 
 // Watcher monitors file system events using Linux inotify.
 type Watcher struct {
-	fd            int                // inotify file descriptor
-	watches       map[int]string     // watch descriptor -> path mapping
-	paths         map[string]int     // path -> watch descriptor mapping
-	mu            sync.RWMutex       // protects watches and paths maps
-	eventHandler  EventHandler       // callback for events
-	errorHandler  ErrorHandler       // callback for errors
-	recursive     bool               // whether to watch subdirectories
-	watchMask     uint32             // inotify event mask
-	done          chan struct{}      // signals watcher shutdown
-	wg            sync.WaitGroup     // tracks goroutines
-	ignorePatterns []string          // patterns to ignore
+	fd             int            // inotify file descriptor
+	watches        map[int]string // watch descriptor -> path mapping
+	paths          map[string]int // path -> watch descriptor mapping
+	mu             sync.RWMutex   // protects watches and paths maps
+	eventHandler   EventHandler   // callback for events
+	errorHandler   ErrorHandler   // callback for errors
+	recursive      bool           // whether to watch subdirectories
+	watchMask      uint32         // inotify event mask
+	done           chan struct{}  // signals watcher shutdown
+	wg             sync.WaitGroup // tracks goroutines
+	ignorePatterns []string       // patterns to ignore
 }
 
 // Option configures a Watcher.

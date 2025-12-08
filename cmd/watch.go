@@ -475,6 +475,12 @@ func getEventTypeString(event *watcher.Event) string {
 	if event.HasType(watcher.EventAttrib) {
 		types = append(types, "ATTRIB")
 	}
+	if event.HasType(watcher.EventIgnored) {
+		types = append(types, "IGNORED")
+	}
+	if event.HasType(watcher.EventQueueOverflow) {
+		types = append(types, "Q_OVERFLOW")
+	}
 
 	if len(types) == 0 {
 		return fmt.Sprintf("UNKNOWN(0x%x)", event.Mask)

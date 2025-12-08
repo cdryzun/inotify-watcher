@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"runtime"
+	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -22,7 +23,7 @@ var versionCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Printf("truenas-artifact-inotify-hook %s\n", Version)
 		fmt.Printf("  Git commit: %s\n", GitCommit)
-		fmt.Printf("  Build time: %s\n", BuildTime)
+		fmt.Printf("  Build time: %s\n", formatBuildTime(BuildTime))
 		fmt.Printf("  Go version: %s\n", runtime.Version())
 		fmt.Printf("  OS/Arch:    %s/%s\n", runtime.GOOS, runtime.GOARCH)
 	},
@@ -30,4 +31,16 @@ var versionCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(versionCmd)
+}
+
+func formatBuildTime(raw string) string {
+	loc, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return raw
+	}
+	t, err := time.Parse(time.RFC3339, raw)
+	if err != nil {
+		return raw
+	}
+	return t.In(loc).Format("2006-01-02 15:04:05 MST")
 }
