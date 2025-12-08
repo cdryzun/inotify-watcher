@@ -105,6 +105,10 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	debounceMs := viper.GetInt("watch.debounce")
 	verbose := viper.GetBool("verbose")
 
+	if dirsOnly && filesOnly {
+		return fmt.Errorf("cannot use --dirs-only and --files-only together")
+	}
+
 	// Determine watch mask based on mode or explicit events
 	var watchMask uint32
 	var isWriteCompleteMode bool
@@ -148,6 +152,15 @@ func runWatch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create watcher: %w", err)
 	}
+	var stopOnce sync.Once
+	stopWatcher := func() {
+		stopOnce.Do(func() {
+			if err := w.Stop(); err != nil {
+				log.Printf("Error stopping watcher: %v", err)
+			}
+		})
+	}
+	defer stopWatcher()
 
 	// Add paths to watch concurrently for better performance
 	log.Printf("Adding %d paths to watch...", len(paths))
@@ -246,11 +259,7 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Stop watcher
-	if err := w.Stop(); err != nil {
-		log.Printf("Error stopping watcher: %v", err)
-	}
-
+	stopWatcher()
 	log.Println("File watcher stopped.")
 	return nil
 }
@@ -267,7 +276,10 @@ func buildEventMask(events []string) uint32 {
 			mask |= uint32(watcher.EventDelete)
 		case "delete_self":
 			mask |= uint32(watcher.EventDeleteSelf)
-		case "move", "moved_from":
+		case "move":
+			mask |= uint32(watcher.EventMovedFrom)
+			mask |= uint32(watcher.EventMovedTo)
+		case "moved_from":
 			mask |= uint32(watcher.EventMovedFrom)
 		case "moved_to":
 			mask |= uint32(watcher.EventMovedTo)
@@ -410,7 +422,11 @@ func matchesEventFilter(event *watcher.Event, filters []string) bool {
 			if event.HasType(watcher.EventDeleteSelf) {
 				return true
 			}
-		case "move", "moved_from":
+		case "move":
+			if event.HasType(watcher.EventMovedFrom) || event.HasType(watcher.EventMovedTo) {
+				return true
+			}
+		case "moved_from":
 			if event.HasType(watcher.EventMovedFrom) {
 				return true
 			}
