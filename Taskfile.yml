@@ -53,9 +53,10 @@ tasks:
       CGO_ENABLED: "0"
       GOOS: linux
       GOARCH: amd64
+      GOAMD64: v1
     cmds:
       - mkdir -p dist
-      - go build -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-amd64 .
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-amd64 .
     generates:
       - dist/{{.APP_NAME}}-linux-amd64
 
@@ -67,7 +68,7 @@ tasks:
       GOARCH: arm64
     cmds:
       - mkdir -p dist
-      - go build -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-arm64 .
+      - go build -trimpath -ldflags "{{.LDFLAGS}}" -o dist/{{.APP_NAME}}-linux-arm64 .
     generates:
       - dist/{{.APP_NAME}}-linux-arm64
 

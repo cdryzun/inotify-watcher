@@ -22,18 +22,24 @@ var watchCmd = &cobra.Command{
 
 Supports recursive watching of subdirectories and can execute hook commands
 when events occur. Events include file creation, modification, deletion,
-and move operations.`,
-	Example: `  # Watch a single directory
-  truenas-artifact-inotify-hook watch /data/artifacts
+and move operations.
+
+Available modes:
+  default        - Monitor all common events (create, modify, delete, move, etc.)
+  write-complete - Monitor only write completion (CLOSE_WRITE, MOVED_TO)
+                   Ideal for detecting when cp/rsync/scp operations finish.`,
+	Example: `  # Watch for write completion only (recommended for artifact sync)
+  truenas-artifact-inotify-hook watch /data/artifacts --mode=write-complete
+
+  # Watch with a hook command triggered on write complete
+  truenas-artifact-inotify-hook watch /data/artifacts --mode=write-complete \
+    --hook=/usr/local/bin/on-artifact-ready.sh
 
   # Watch multiple directories
   truenas-artifact-inotify-hook watch /data/artifacts /data/uploads
 
-  # Watch with a hook command
-  truenas-artifact-inotify-hook watch /data/artifacts --hook=/usr/local/bin/on-change.sh
-
   # Watch specific events only
-  truenas-artifact-inotify-hook watch /data/artifacts --events=create,close_write
+  truenas-artifact-inotify-hook watch /data/artifacts --events=close_write
 
   # Non-recursive watch
   truenas-artifact-inotify-hook watch /data/artifacts --recursive=false`,
@@ -45,34 +51,57 @@ func init() {
 	rootCmd.AddCommand(watchCmd)
 
 	// Watch command flags
+	watchCmd.Flags().StringP("mode", "m", "write-complete", "Watch mode: default, write-complete")
 	watchCmd.Flags().BoolP("recursive", "r", true, "Watch directories recursively")
 	watchCmd.Flags().StringSliceP("ignore", "i", []string{".git", "*.tmp", "*.swp", "*~"}, "Patterns to ignore")
 	watchCmd.Flags().StringP("hook", "H", "", "Command to execute on file events")
 	watchCmd.Flags().StringSliceP("events", "e", []string{}, "Filter specific events (create,modify,delete,move,close_write,attrib)")
+	watchCmd.Flags().BoolP("dirs-only", "d", false, "Only report events for directories (ignore files)")
+	watchCmd.Flags().BoolP("files-only", "f", false, "Only report events for files (ignore directories)")
 
 	// Bind to viper
+	viper.BindPFlag("watch.mode", watchCmd.Flags().Lookup("mode"))
 	viper.BindPFlag("watch.recursive", watchCmd.Flags().Lookup("recursive"))
 	viper.BindPFlag("watch.ignore", watchCmd.Flags().Lookup("ignore"))
 	viper.BindPFlag("watch.hook", watchCmd.Flags().Lookup("hook"))
 	viper.BindPFlag("watch.events", watchCmd.Flags().Lookup("events"))
+	viper.BindPFlag("watch.dirs-only", watchCmd.Flags().Lookup("dirs-only"))
+	viper.BindPFlag("watch.files-only", watchCmd.Flags().Lookup("files-only"))
 }
 
 func runWatch(cmd *cobra.Command, args []string) error {
 	paths := args
+	mode := viper.GetString("watch.mode")
 	recursive := viper.GetBool("watch.recursive")
 	ignorePatterns := viper.GetStringSlice("watch.ignore")
 	hookCommand := viper.GetString("watch.hook")
 	eventFilter := viper.GetStringSlice("watch.events")
+	dirsOnly := viper.GetBool("watch.dirs-only")
+	filesOnly := viper.GetBool("watch.files-only")
 	verbose := viper.GetBool("verbose")
 
-	// Build event mask if specific events are requested
-	var watchMask uint32 = watcher.DefaultWatchMask
+	// Determine watch mask based on mode or explicit events
+	var watchMask uint32
+	switch mode {
+	case "write-complete":
+		watchMask = watcher.WriteCompleteWatchMask
+		log.Printf("Mode: write-complete (CLOSE_WRITE, MOVED_TO)")
+	case "default":
+		watchMask = watcher.DefaultWatchMask
+		log.Printf("Mode: default (all events)")
+	default:
+		watchMask = watcher.WriteCompleteWatchMask
+		log.Printf("Mode: write-complete (CLOSE_WRITE, MOVED_TO)")
+	}
+
+	// Override with explicit events if specified
 	if len(eventFilter) > 0 {
 		watchMask = buildEventMask(eventFilter)
+		log.Printf("Custom events: %v", eventFilter)
 	}
 
 	// Create event handler
-	eventHandler := createEventHandler(hookCommand, eventFilter, verbose)
+	eventHandler := createEventHandler(hookCommand, eventFilter, verbose, dirsOnly, filesOnly)
 
 	// Create error handler
 	errorHandler := func(err error) {
@@ -168,8 +197,16 @@ func buildEventMask(events []string) uint32 {
 	return mask
 }
 
-func createEventHandler(hookCommand string, eventFilter []string, verbose bool) watcher.EventHandler {
+func createEventHandler(hookCommand string, eventFilter []string, verbose, dirsOnly, filesOnly bool) watcher.EventHandler {
 	return func(event *watcher.Event) {
+		// Filter by type (directory/file)
+		if dirsOnly && !event.IsDir {
+			return
+		}
+		if filesOnly && event.IsDir {
+			return
+		}
+
 		eventType := getEventTypeString(event)
 
 		// Filter events if specified

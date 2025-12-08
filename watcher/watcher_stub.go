@@ -29,6 +29,9 @@ const (
 // DefaultWatchMask is the default watch mask for common file operations.
 const DefaultWatchMask uint32 = 0x000003CE
 
+// WriteCompleteWatchMask monitors only write completion events.
+const WriteCompleteWatchMask uint32 = 0x00000088
+
 // Event represents a file system event.
 type Event struct {
 	Path   string

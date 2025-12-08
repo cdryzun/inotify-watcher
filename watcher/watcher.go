@@ -40,10 +40,14 @@ const (
 	EventIsDir EventType = unix.IN_ISDIR
 )
 
-// Default watch mask for monitoring common file operations.
+// DefaultWatchMask monitors common file operations.
 const DefaultWatchMask = unix.IN_CREATE | unix.IN_MODIFY | unix.IN_DELETE |
 	unix.IN_MOVED_FROM | unix.IN_MOVED_TO | unix.IN_CLOSE_WRITE |
 	unix.IN_DELETE_SELF | unix.IN_ATTRIB
+
+// WriteCompleteWatchMask monitors only write completion events.
+// Ideal for detecting when cp/rsync/scp operations finish.
+const WriteCompleteWatchMask = unix.IN_CLOSE_WRITE | unix.IN_MOVED_TO
 
 // Event represents a file system event.
 type Event struct {

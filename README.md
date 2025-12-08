@@ -1,93 +1,243 @@
-# truenas-artifact-inotify-hook
+# TrueNAS Artifact Inotify Hook
 
+基于 Linux inotify 的文件系统监听工具，使用 `golang.org/x/sys/unix` 实现底层系统调用。专为 TrueNAS SCALE 上的 artifact 目录监控设计。
 
+## 功能特性
 
-## Getting started
+- **底层 inotify API**: 直接使用 `golang.org/x/sys/unix` 系统调用，无第三方封装
+- **写入完成检测**: 默认监听 `CLOSE_WRITE` 和 `MOVED_TO` 事件，精准捕获 `cp`/`rsync`/`scp` 完成时机
+- **递归目录监听**: 自动监听所有子目录，新建目录自动添加监听
+- **Hook 命令执行**: 文件变化时触发自定义脚本
+- **灵活过滤**: 支持忽略模式、事件类型过滤、文件/目录过滤
+- **配置文件支持**: 支持 YAML 配置和环境变量
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 安装
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+### 从源码构建
 
-## Add your files
+```bash
+# 克隆仓库
+git clone https://gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook.git
+cd truenas-artifact-inotify-hook
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+# 使用 Task 构建（推荐）
+task build:truenas
+
+# 或手动构建
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags "-s -w" -o dist/truenas-artifact-inotify-hook-linux-amd64 .
+```
+
+### 部署到 TrueNAS
+
+```bash
+scp dist/truenas-artifact-inotify-hook-linux-amd64 root@truenas:/usr/local/bin/inotify-hook
+ssh root@truenas chmod +x /usr/local/bin/inotify-hook
+```
+
+## 使用方法
+
+### 基本用法
+
+```bash
+# 监听目录（默认 write-complete 模式）
+inotify-hook watch /mnt/data/artifacts
+
+# 监听多个目录
+inotify-hook watch /mnt/data/artifacts /mnt/data/uploads
+```
+
+### 监听模式
+
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| `write-complete` | 仅监听写入完成 (CLOSE_WRITE, MOVED_TO) | **默认**，适合 cp/rsync/scp 完成检测 |
+| `default` | 监听所有常见事件 | 需要完整文件操作日志 |
+
+```bash
+# 写入完成模式（默认）
+inotify-hook watch /mnt/data/artifacts --mode=write-complete
+
+# 完整事件模式
+inotify-hook watch /mnt/data/artifacts --mode=default
+```
+
+### Hook 命令
+
+当文件事件发生时，执行指定的脚本：
+
+```bash
+inotify-hook watch /mnt/data/artifacts --hook=/usr/local/bin/on-artifact-ready.sh
+```
+
+Hook 脚本接收以下参数：
+- `$1`: 事件类型 (CLOSE_WRITE, MOVED_TO, CREATE, DELETE, etc.)
+- `$2`: 文件完整路径
+- `$3`: 文件名
+- `$4`: 是否为目录 (true/false)
+
+示例 Hook 脚本：
+
+```bash
+#!/bin/bash
+# /usr/local/bin/on-artifact-ready.sh
+
+EVENT_TYPE="$1"
+FILE_PATH="$2"
+FILE_NAME="$3"
+IS_DIR="$4"
+
+echo "[$(date)] Event: $EVENT_TYPE, Path: $FILE_PATH, IsDir: $IS_DIR"
+
+# 示例：触发 CI/CD 流水线
+if [[ "$FILE_PATH" == *.tar.gz ]]; then
+    curl -X POST "https://ci.example.com/trigger" \
+        -d "artifact=$FILE_PATH"
+fi
+```
+
+### 过滤选项
+
+```bash
+# 仅监听文件（忽略目录事件）
+inotify-hook watch /mnt/data/artifacts --files-only
+
+# 仅监听目录（忽略文件事件）
+inotify-hook watch /mnt/data/artifacts --dirs-only
+
+# 忽略特定模式
+inotify-hook watch /mnt/data/artifacts --ignore=".git,*.tmp,*.swp"
+
+# 监听特定事件
+inotify-hook watch /mnt/data/artifacts --events=close_write,moved_to
+
+# 非递归监听
+inotify-hook watch /mnt/data/artifacts --recursive=false
+```
+
+### 配置文件
+
+创建 `~/.truenas-artifact-inotify-hook.yaml`:
+
+```yaml
+verbose: false
+
+watch:
+  mode: write-complete
+  recursive: true
+  ignore:
+    - ".git"
+    - "*.tmp"
+    - "*.swp"
+    - "*~"
+  hook: /usr/local/bin/on-artifact-ready.sh
+  files-only: false
+  dirs-only: false
+```
+
+也可使用环境变量（前缀 `INOTIFY_HOOK_`）：
+
+```bash
+export INOTIFY_HOOK_WATCH_MODE=write-complete
+export INOTIFY_HOOK_WATCH_HOOK=/usr/local/bin/on-artifact-ready.sh
+```
+
+## 实际使用场景
+
+### 监听 ZFS Snapshot 复制
+
+```bash
+# 监听从 ZFS snapshot 复制固件的完成事件
+inotify-hook watch /mnt/data/firmware_os/prod \
+  --mode=write-complete \
+  --files-only \
+  --hook=/usr/local/bin/notify-firmware-ready.sh
+```
+
+### 作为 systemd 服务运行
+
+创建 `/etc/systemd/system/inotify-hook.service`:
+
+```ini
+[Unit]
+Description=TrueNAS Artifact Inotify Hook
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/inotify-hook watch /mnt/data/artifacts --hook=/usr/local/bin/on-artifact-ready.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启用服务：
+
+```bash
+systemctl daemon-reload
+systemctl enable --now inotify-hook
+```
+
+## 命令参考
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook.git
-git branch -M main
-git push -uf origin main
+Usage:
+  truenas-artifact-inotify-hook watch [paths...] [flags]
+
+Flags:
+  -d, --dirs-only        仅报告目录事件
+  -e, --events strings   过滤特定事件 (create,modify,delete,move,close_write,attrib)
+  -f, --files-only       仅报告文件事件
+  -h, --help             帮助信息
+  -H, --hook string      事件触发时执行的命令
+  -i, --ignore strings   忽略模式 (默认 [.git,*.tmp,*.swp,*~])
+  -m, --mode string      监听模式: default, write-complete (默认 "write-complete")
+  -r, --recursive        递归监听子目录 (默认 true)
+
+Global Flags:
+      --config string   配置文件路径
+  -v, --verbose         详细输出
 ```
 
-## Integrate with your tools
+## 事件类型
 
-- [ ] [Set up project integrations](https://gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/-/settings/integrations)
+| 事件 | 说明 |
+|------|------|
+| `CLOSE_WRITE` | 文件写入完成并关闭 |
+| `MOVED_TO` | 文件移动到监听目录 |
+| `CREATE` | 文件/目录创建 |
+| `MODIFY` | 文件内容修改 |
+| `DELETE` | 文件/目录删除 |
+| `ATTRIB` | 属性变更 |
 
-## Collaborate with your team
+## 构建任务
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+使用 [Task](https://taskfile.dev/) 进行构建：
 
-## Test and Deploy
+```bash
+# 查看所有任务
+task --list
 
-Use the built-in continuous integration in GitLab.
+# 为 TrueNAS 构建
+task build:truenas
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+# 构建所有平台
+task build:all
 
-***
+# 运行测试
+task test
 
-# Editing this README
+# 清理构建产物
+task clean
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 系统要求
 
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+- **运行环境**: Linux (TrueNAS SCALE 基于 Debian)
+- **构建环境**: Go 1.21+
+- **架构支持**: amd64, arm64
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+MIT License
