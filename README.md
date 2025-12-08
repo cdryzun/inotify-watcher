@@ -299,7 +299,7 @@ Type=simple
 User=root
 Group=root
 
-ExecStart=/usr/local/bin/inotify-hook watch \
+ExecStart=/root/bin/inotify-hook watch \
     /mnt/data/firmware_os/prod/prod-os/ \
     /mnt/data/firmware_os/pre/os-pre/ \
     /mnt/data/firmware_os/test/os-test/ \
@@ -411,7 +411,7 @@ StartLimitBurst=3              # 最多重启 3 次
 Type=simple
 User=root
 
-ExecStart=/usr/local/bin/inotify-hook watch \
+ExecStart=/root/bin/inotify-hook watch \
     /mnt/data/firmware_os/prod/prod-os/ \
     /mnt/data/firmware_os/pre/os-pre/ \
     /mnt/data/firmware_os/test/os-test/ \
