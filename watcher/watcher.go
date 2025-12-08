@@ -47,7 +47,8 @@ const DefaultWatchMask = unix.IN_CREATE | unix.IN_MODIFY | unix.IN_DELETE |
 
 // WriteCompleteWatchMask monitors only write completion events.
 // Ideal for detecting when cp/rsync/scp operations finish.
-const WriteCompleteWatchMask = unix.IN_CLOSE_WRITE | unix.IN_MOVED_TO
+// IN_CREATE is included to enable recursive watching of newly created directories.
+const WriteCompleteWatchMask = unix.IN_CLOSE_WRITE | unix.IN_MOVED_TO | unix.IN_CREATE
 
 // Event represents a file system event.
 type Event struct {
