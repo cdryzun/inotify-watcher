@@ -291,6 +291,8 @@ cat > /etc/systemd/system/inotify-hook.service << 'EOF'
 Description=TrueNAS Artifact Inotify Hook - File System Event Monitor
 After=network.target local-fs.target zfs.target
 Wants=zfs.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
 
 [Service]
 Type=simple
@@ -307,8 +309,6 @@ ExecStart=/usr/local/bin/inotify-hook watch \
 
 Restart=always
 RestartSec=5
-StartLimitIntervalSec=60
-StartLimitBurst=3
 
 Environment=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
@@ -404,6 +404,8 @@ systemctl disable inotify-hook
 Description=TrueNAS Artifact Inotify Hook - File System Event Monitor
 After=network.target local-fs.target zfs.target
 Wants=zfs.target
+StartLimitIntervalSec=60       # 60 秒内
+StartLimitBurst=3              # 最多重启 3 次
 
 [Service]
 Type=simple
@@ -415,11 +417,11 @@ ExecStart=/usr/local/bin/inotify-hook watch \
     /mnt/data/firmware_os/test/os-test/ \
     --mode=write-complete \
     --hook=/root/scripts/inotify-hook.sh \
-    --debounce=2000
+    --debounce=20000
 
-Restart=always
-RestartSec=5
-LimitNOFILE=65536
+Restart=always                 # 总是重启
+RestartSec=5                   # 重启间隔 5 秒
+LimitNOFILE=65536              # 文件描述符限制
 
 [Install]
 WantedBy=multi-user.target
