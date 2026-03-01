@@ -33,7 +33,6 @@ linters:
     - exhaustive
     - sqlclosecheck
     - bodyclose
-    - shadow
 
 linters-settings:
   govet:
