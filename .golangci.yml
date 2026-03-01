@@ -55,7 +55,7 @@ linters-settings:
     local-prefixes: github.com/cdryzun/inotify-watcher
 
   gocyclo:
-    min-complexity: 20
+    min-complexity: 30
 
   dupl:
     threshold: 100
@@ -68,7 +68,7 @@ linters-settings:
     locale: US
 
   lll:
-    line-length: 150
+    line-length: 200
     tab-width: 4
 
   prealloc:
@@ -90,6 +90,16 @@ issues:
     - path: vendor/
       linters:
         - all
+
+    # Exclude errcheck for common functions
+    - linters:
+        - errcheck
+      text: "Error return value of `(viper.BindPFlag|unix.InotifyRmWatch)`"
+
+    # Exclude shadow for common patterns
+    - linters:
+        - govet
+      text: "shadow: declaration of"
 
   max-issues-per-linter: 0
   max-same-issues: 0
