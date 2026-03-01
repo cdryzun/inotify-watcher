@@ -42,9 +42,9 @@ A high-performance file system monitoring tool built on Linux inotify using `gol
 ### One-Line Installation
 
 ```bash
-# Download latest release
-wget https://github.com/cdryzun/inotify-watcher/releases/latest/download/inotify-watcher-1.0.0-linux-amd64.tar.gz
-tar -xzf inotify-watcher-1.0.0-linux-amd64.tar.gz
+# Download latest release (replace X.Y.Z with the latest version)
+wget https://github.com/cdryzun/inotify-watcher/releases/latest/download/inotify-watcher-linux-amd64.tar.gz
+tar -xzf inotify-watcher-linux-amd64.tar.gz
 sudo mv inotify-watcher /usr/local/bin/inotify-hook
 sudo chmod +x /usr/local/bin/inotify-hook
 
@@ -389,20 +389,6 @@ Thanks to all contributors!
 <a href="https://github.com/cdryzun/inotify-watcher/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=cdryzun/inotify-watcher" />
 </a>
-
-## 🗺️ Roadmap
-
-### v1.1 (Planned)
-- [ ] Web UI monitoring dashboard
-- [ ] Prometheus metrics export
-- [ ] Hot configuration reload
-- [ ] More example scripts
-
-### v1.2 (Future)
-- [ ] Distributed watching support
-- [ ] gRPC API
-- [ ] Kubernetes Operator
-- [ ] Event persistence and replay
 
 ## 📜 License
 

@@ -709,20 +709,6 @@ inotify 仅支持本地文件系统。对于 NFS/SMB:
   <img src="https://contrib.rocks/image?repo=cdryzun/inotify-watcher" />
 </a>
 
-## 🗺️ Roadmap
-
-### v1.1 (计划中)
-- [ ] Web UI 监控面板
-- [ ] Prometheus metrics 导出
-- [ ] 配置热重载
-- [ ] 更多示例脚本
-
-### v1.2 (未来)
-- [ ] 分布式监听支持
-- [ ] gRPC API
-- [ ] Kubernetes Operator
-- [ ] 事件持久化和回放
-
 ## 📜 License
 
 MIT License - 详见 [LICENSE](LICENSE)

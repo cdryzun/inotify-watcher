@@ -29,7 +29,7 @@ A clear and concise description of what actually happened.
 
 - **OS**: [e.g. TrueNAS SCALE 23.10.1, Ubuntu 22.04]
 - **Architecture**: [e.g. amd64, arm64]
-- **Version**: [e.g. 1.0.0]
+- **Version**: [e.g. 1.0.3]
 - **Go Version**: [e.g. 1.21.5]
 
 ## Configuration
