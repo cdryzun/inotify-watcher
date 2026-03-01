@@ -41,7 +41,7 @@ jobs:
       run: go test -v -race -coverprofile=coverage.txt -covermode=atomic ./...
 
     - name: Upload coverage to Codecov
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.txt
         flags: unittests
@@ -98,7 +98,7 @@ jobs:
         go build -trimpath -ldflags "-s -w" -o dist/inotify-watcher-linux-arm64 .
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: binaries
         path: dist/
