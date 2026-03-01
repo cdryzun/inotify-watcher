@@ -101,6 +101,11 @@ issues:
         - govet
       text: "shadow: declaration of"
 
+    # Exclude goimports for now
+    - linters:
+        - goimports
+      path: ".*\\.go"
+
   max-issues-per-linter: 0
   max-same-issues: 0
   new: false
