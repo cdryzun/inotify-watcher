@@ -1,0 +1,92 @@
+# .golangci.yml configuration
+# https://golangci-lint.run/usage/configuration/
+
+run:
+  timeout: 5m
+  issues-exit-code: 1
+  tests: true
+
+output:
+  formats:
+    - format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
+
+linters:
+  enable:
+    - gofmt
+    - goimports
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - gosimple
+    - structcheck
+    - varcheck
+    - ineffassign
+    - typecheck
+    - gocyclo
+    - dupl
+    - goconst
+    - misspell
+    - lll
+    - prealloc
+    - exportloopref
+    - exhaustive
+    - sqlclosecheck
+    - bodyclose
+
+linters-settings:
+  govet:
+    check-shadowing: true
+
+  errcheck:
+    check-type-assertions: true
+    check-blank: true
+
+  gofmt:
+    simplify: true
+
+  goimports:
+    local-prefixes: github.com/cdryzun/inotify-watcher
+
+  gocyclo:
+    min-complexity: 15
+
+  dupl:
+    threshold: 100
+
+  goconst:
+    min-len: 3
+    min-occurrences: 3
+
+  misspell:
+    locale: US
+
+  lll:
+    line-length: 120
+    tab-width: 4
+
+  prealloc:
+    simple: true
+    range-loops: true
+    for-loops: false
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+
+    # Exclude known linters from partially hard-vendored code,
+    - path: vendor/
+      linters:
+        - all
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new: false

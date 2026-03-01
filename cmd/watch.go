@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/watcher"
+	"github.com/cdryzun/inotify-watcher/watcher"
 )
 
 // watchCmd represents the watch command.
