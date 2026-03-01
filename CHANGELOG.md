@@ -7,13 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-- Comprehensive test suite with 80%+ coverage
-- MIT License for open source compliance
-- Contributing guidelines (CONTRIBUTING.md)
-- Code of Conduct (CODE_OF_CONDUCT.md)
-- GitHub issue templates
-- Pull request template
+## [1.0.1] - 2026-03-01
+
+### Fixed
+- Remove redundant 1ms sleep in `hookDebouncer.trigger()` that was held
+  while owning the mutex, making it impossible for `execute()` to advance.
+  Concurrent execution is correctly guarded by the `running` flag (#1)
+- Fix command injection risk in `executeHook`: validate hook path, check
+  file permissions, and sanitize event parameters before execution
+- Fix `Watcher.Stop()` to be idempotent; calling it multiple times no
+  longer panics on double channel close
+- Fix timer race in `hookDebouncer` by relying on `running` flag as the
+  sole concurrency guard
+- Improve `shouldIgnore()` to report invalid glob patterns via errorHandler
+  instead of silently swallowing errors
+- Use `time.Local` instead of hardcoded `Asia/Shanghai` timezone in
+  build time display
 
 ## [1.0.0] - 2025-12-08
 
