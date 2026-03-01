@@ -320,14 +320,11 @@ func (d *hookDebouncer) trigger(event *watcher.Event, eventType string) {
 
 	d.pending = append(d.pending, event)
 
-	// Reset timer on each event
+	// Reset timer on each event. time.AfterFunc fires a callback (no channel
+	// to drain), so ignoring the Stop() return value is correct here.
+	// Concurrent execution of execute() is prevented by the running flag.
 	if d.timer != nil {
-		// Stop the timer and check if it already fired
-		if !d.timer.Stop() {
-			// Timer already fired, wait a moment for execute() to complete
-			// The running flag in execute() will prevent concurrent execution
-			<-time.After(1 * time.Millisecond)
-		}
+		d.timer.Stop()
 	}
 
 	d.timer = time.AfterFunc(d.debounceTime, func() {
