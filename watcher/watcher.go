@@ -132,6 +132,8 @@ type Watcher struct {
 	done           chan struct{}  // signals watcher shutdown
 	wg             sync.WaitGroup // tracks goroutines
 	ignorePatterns []string       // patterns to ignore
+	closed         bool           // prevents multiple Stop() calls
+	closeMu        sync.Mutex     // protects closed flag
 }
 
 // Option configures a Watcher.
@@ -430,7 +432,15 @@ func (w *Watcher) parseEvents(buf []byte) {
 func (w *Watcher) shouldIgnore(path string) bool {
 	base := filepath.Base(path)
 	for _, pattern := range w.ignorePatterns {
-		if matched, _ := filepath.Match(pattern, base); matched {
+		matched, err := filepath.Match(pattern, base)
+		if err != nil {
+			// Invalid pattern, log error if error handler is set
+			if w.errorHandler != nil {
+				w.errorHandler(fmt.Errorf("invalid ignore pattern %q: %w", pattern, err))
+			}
+			continue
+		}
+		if matched {
 			return true
 		}
 	}
@@ -439,19 +449,46 @@ func (w *Watcher) shouldIgnore(path string) bool {
 
 // Stop stops the watcher.
 func (w *Watcher) Stop() error {
+	w.closeMu.Lock()
+	if w.closed {
+		w.closeMu.Unlock()
+		return nil // Already closed
+	}
+	w.closed = true
+	w.closeMu.Unlock()
+
+	// Signal shutdown
 	close(w.done)
 	w.wg.Wait()
 
 	// Remove all watches
 	w.mu.Lock()
+	var firstErr error
 	for wd := range w.watches {
-		unix.InotifyRmWatch(w.fd, uint32(wd))
+		if _, err := unix.InotifyRmWatch(w.fd, uint32(wd)); err != nil && !errors.Is(err, unix.EINVAL) {
+			if firstErr == nil {
+				firstErr = fmt.Errorf("inotify_rm_watch failed for wd %d: %w", wd, err)
+			}
+			if w.errorHandler != nil {
+				w.errorHandler(fmt.Errorf("inotify_rm_watch failed for wd %d: %w", wd, err))
+			}
+		}
 	}
 	w.watches = make(map[int]string)
 	w.paths = make(map[string]int)
 	w.mu.Unlock()
 
-	return unix.Close(w.fd)
+	// Close file descriptor
+	if err := unix.Close(w.fd); err != nil {
+		if firstErr == nil {
+			return fmt.Errorf("close inotify fd failed: %w", err)
+		}
+		if w.errorHandler != nil {
+			w.errorHandler(fmt.Errorf("close inotify fd failed: %w", err))
+		}
+	}
+
+	return firstErr
 }
 
 // WatchedPaths returns a list of currently watched paths.

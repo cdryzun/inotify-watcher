@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -321,7 +322,12 @@ func (d *hookDebouncer) trigger(event *watcher.Event, eventType string) {
 
 	// Reset timer on each event
 	if d.timer != nil {
-		d.timer.Stop()
+		// Stop the timer and check if it already fired
+		if !d.timer.Stop() {
+			// Timer already fired, wait a moment for execute() to complete
+			// The running flag in execute() will prevent concurrent execution
+			<-time.After(1 * time.Millisecond)
+		}
 	}
 
 	d.timer = time.AfterFunc(d.debounceTime, func() {
@@ -489,13 +495,44 @@ func getEventTypeString(event *watcher.Event) string {
 }
 
 func executeHook(hookCmd string, event *watcher.Event, eventType string) {
+	// Security: Validate hook command path
+	absHookPath, err := filepath.Abs(hookCmd)
+	if err != nil {
+		log.Printf("Invalid hook path: %v", err)
+		return
+	}
+
+	// Security: Check if hook file exists and is a regular file
+	info, err := os.Stat(absHookPath)
+	if err != nil {
+		log.Printf("Cannot access hook command: %v", err)
+		return
+	}
+
+	// Security: Ensure it's a regular file (not a directory or symlink to directory)
+	if !info.Mode().IsRegular() {
+		log.Printf("Hook command is not a regular file: %s", absHookPath)
+		return
+	}
+
+	// Security: Check file permissions (should not be writable by group/others)
+	perms := info.Mode().Perm()
+	if perms&0022 != 0 {
+		log.Printf("Warning: Hook command has insecure permissions: %s (should not be group/others writable)", absHookPath)
+	}
+
+	// Security: Sanitize event parameters to prevent injection
+	eventType = filepath.Base(eventType) // Remove path separators
+	eventPath := filepath.Clean(event.Path)
+	eventName := filepath.Base(event.Name)
+
 	isDirStr := "false"
 	if event.IsDir {
 		isDirStr = "true"
 	}
 
-	// Execute hook with event information as arguments
-	cmd := exec.Command(hookCmd, eventType, event.Path, event.Name, isDirStr)
+	// Execute hook with validated and sanitized parameters
+	cmd := exec.Command(absHookPath, eventType, eventPath, eventName, isDirStr)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 

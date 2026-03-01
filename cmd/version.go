@@ -34,13 +34,9 @@ func init() {
 }
 
 func formatBuildTime(raw string) string {
-	loc, err := time.LoadLocation("Asia/Shanghai")
-	if err != nil {
-		return raw
-	}
 	t, err := time.Parse(time.RFC3339, raw)
 	if err != nil {
 		return raw
 	}
-	return t.In(loc).Format("2006-01-02 15:04:05 MST")
+	return t.In(time.Local).Format("2006-01-02 15:04:05 MST")
 }
