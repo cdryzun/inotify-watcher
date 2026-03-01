@@ -58,7 +58,7 @@ changelog:
 
 release:
   github:
-    owner: your-org
+    owner: cdryzun
     name: inotify-watcher
   draft: false
   prerelease: auto
@@ -73,7 +73,7 @@ release:
     See the [CHANGELOG.md](CHANGELOG.md) for more details.
 
   footer: |
-    **Full Changelog**: https://github.com/your-org/inotify-watcher/compare/{{ .PreviousTag }}...{{ .Tag }}
+    **Full Changelog**: https://github.com/cdryzun/inotify-watcher/compare/{{ .PreviousTag }}...{{ .Tag }}
 
     ## Installation
 
@@ -97,13 +97,13 @@ release:
 
     ## Documentation
 
-    - [README](https://github.com/your-org/inotify-watcher#readme)
-    - [Usage Guide](https://github.com/your-org/inotify-watcher#usage)
-    - [Contributing](https://github.com/your-org/inotify-watcher/blob/main/CONTRIBUTING.md)
+    - [README](https://github.com/cdryzun/inotify-watcher#readme)
+    - [Usage Guide](https://github.com/cdryzun/inotify-watcher#usage)
+    - [Contributing](https://github.com/cdryzun/inotify-watcher/blob/main/CONTRIBUTING.md)
 
     ## Support
 
-    If you encounter any issues, please [open an issue](https://github.com/your-org/inotify-watcher/issues).
+    If you encounter any issues, please [open an issue](https://github.com/cdryzun/inotify-watcher/issues).
 
     ---
 
