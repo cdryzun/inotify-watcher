@@ -13,9 +13,9 @@ var cfgFile string
 
 // rootCmd represents the base command when called without any subcommands.
 var rootCmd = &cobra.Command{
-	Use:   "truenas-artifact-inotify-hook",
+	Use:   "inotify-watcher",
 	Short: "A file system monitoring tool using Linux inotify",
-	Long: `TrueNAS Artifact Inotify Hook is a file system monitoring tool
+	Long: `inotify-watcher is a high-performance file system monitoring tool
 that uses Linux inotify via golang.org/x/sys/unix to watch directories
 for file changes and execute hook commands.
 
@@ -35,7 +35,7 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	// Global flags
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.truenas-artifact-inotify-hook.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.inotify-watcher.yaml)")
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose output")
 
 	// Bind to viper
@@ -52,7 +52,7 @@ func initConfig() {
 			viper.AddConfigPath(home)
 		}
 		viper.AddConfigPath(".")
-		viper.SetConfigName(".truenas-artifact-inotify-hook")
+		viper.SetConfigName(".inotify-watcher")
 		viper.SetConfigType("yaml")
 	}
 
