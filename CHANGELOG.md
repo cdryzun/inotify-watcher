@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-03-01
+
+### Fixed
+- Fix CLI binary name still showing `truenas-artifact-inotify-hook` after
+  rebranding; update `Use`, help text, and `--config` flag description to
+  `inotify-watcher` (#2)
+- Fix config file lookup using old name `.truenas-artifact-inotify-hook.yaml`;
+  now correctly loads `~/.inotify-watcher.yaml` as documented (#2)
+- Fix `--events` flag not disabling write-complete mode's CREATE suppression;
+  combining `--mode=write-complete --events=create` previously emitted zero
+  events — `isWriteCompleteMode` is now reset when `--events` is provided (#2)
+
 ## [1.0.1] - 2026-03-01
 
 ### Fixed
