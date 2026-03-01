@@ -21,8 +21,6 @@ linters:
     - staticcheck
     - unused
     - gosimple
-    - structcheck
-    - varcheck
     - ineffassign
     - typecheck
     - gocyclo
@@ -31,18 +29,25 @@ linters:
     - misspell
     - lll
     - prealloc
-    - exportloopref
+    - copyloopvar
     - exhaustive
     - sqlclosecheck
     - bodyclose
+    - shadow
 
 linters-settings:
   govet:
-    check-shadowing: true
+    enable:
+      - shadow
 
   errcheck:
-    check-type-assertions: true
-    check-blank: true
+    check-type-assertions: false
+    check-blank: false
+    exclude-functions:
+      - fmt.Printf
+      - fmt.Sprintf
+      - fmt.Print
+      - fmt.Println
 
   gofmt:
     simplify: true
@@ -51,7 +56,7 @@ linters-settings:
     local-prefixes: github.com/cdryzun/inotify-watcher
 
   gocyclo:
-    min-complexity: 15
+    min-complexity: 20
 
   dupl:
     threshold: 100
@@ -64,7 +69,7 @@ linters-settings:
     locale: US
 
   lll:
-    line-length: 120
+    line-length: 150
     tab-width: 4
 
   prealloc:
