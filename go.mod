@@ -1,4 +1,4 @@
-module gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook
+module github.com/cdryzun/inotify-watcher
 
 go 1.24.0
 

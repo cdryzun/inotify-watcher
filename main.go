@@ -3,7 +3,7 @@
 package main
 
 import (
-	"gitlab.cpinnov.run/devops/truenas-artifact-inotify-hook/cmd"
+	"github.com/cdryzun/inotify-watcher/cmd"
 )
 
 func main() {
