@@ -127,10 +127,13 @@ func runWatch(cmd *cobra.Command, args []string) error {
 		log.Printf("Mode: write-complete (CLOSE_WRITE, MOVED_TO)")
 	}
 
-	// Override with explicit events if specified
+	// Override with explicit events if specified.
+	// --events takes full control of both the watch mask and the event handler
+	// filter, so write-complete mode's CREATE suppression must be disabled.
 	if len(eventFilter) > 0 {
 		watchMask = buildEventMask(eventFilter)
-		log.Printf("Custom events: %v", eventFilter)
+		isWriteCompleteMode = false
+		log.Printf("Custom events: %v (mode filter disabled)", eventFilter)
 	}
 
 	// Create event handler
