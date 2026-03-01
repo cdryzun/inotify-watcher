@@ -42,3 +42,5 @@ tmp/
 temp/
 *.tmp
 *.log
+# Production hook scripts (contain environment-specific credentials)
+hooks/
